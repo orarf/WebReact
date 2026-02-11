@@ -1,57 +1,60 @@
+import { Link } from 'react-router-dom';
 import logo1 from '../assets/Tricomm-logo.png';
-import logo2 from '../assets/unnamed.jpg';      // โลโก้สำหรับ Pro
-import logo3 from '../assets/unnamed-512x256.png'; // โลโก้สำหรับ Enterprise
+import logo2 from '../assets/unnamed.jpg';
 
 function Products() {
   const products = [
     {
+      id: 'test1',
       name: 'Test1',
       tagline: 'เริ่มต้นที่ใช่สำหรับธุรกิจเล็ก',
-      logo: logo1,     // ← โลโก้ที่ 1
-      // price: '฿499',
-      // period: '/เดือน',
+      logo: logo1,
+      price: '฿499',
+      period: '/เดือน',
       features: [
-        // 'ผู้ใช้งานสูงสุด 5 คน',
-        // 'พื้นที่จัดเก็บ 100 GB',
-        // 'รองรับการสนทนาแบบกลุ่ม',
-        // 'การเข้ารหัสพื้นฐาน',
-        // 'สนับสนุนทางอีเมล'
+        'ผู้ใช้งานสูงสุด 5 คน',
+        'พื้นที่จัดเก็บ 100 GB',
+        'รองรับการสนทนาแบบกลุ่ม',
+        'การเข้ารหัสพื้นฐาน',
+        'สนับสนุนทางอีเมล'
       ],
-      cta: 'รายละเอียด',
+      cta: 'ทดลองฟรี',
       popular: false
     },
     {
-      name: 'Test2',
+      id: 'test2',
+      name: 'Viavi',
       tagline: 'สำหรับธุรกิจที่ต้องการเติบโต',
-      logo: logo2,     // ← โลโก้ที่ 2 (เปลี่ยนเป็น logo2 เมื่อมีไฟล์)
-      // price: '฿1,299',
-      // period: '/เดือน',
+      logo: logo2,
+      price: '฿1,299',
+      period: '/เดือน',
       features: [
-        // 'ผู้ใช้งานไม่จำกัด',
-        // 'พื้นที่จัดเก็บ 1 TB',
-        // 'การวิเคราะห์ขั้นสูง',
-        // 'การเข้ารหัสระดับองค์กร',
-        // 'สนับสนุน 24/7',
-        // 'API สำหรับนักพัฒนา'
+        'ผู้ใช้งานไม่จำกัด',
+        'พื้นที่จัดเก็บ 1 TB',
+        'การวิเคราะห์ขั้นสูง',
+        'การเข้ารหัสระดับองค์กร',
+        'สนับสนุน 24/7',
+        'API สำหรับนักพัฒนา'
       ],
-      cta: 'รายละเอียด',
+      cta: 'ซื้อเลย',
       popular: true
     },
     {
+      id: 'test3',
       name: 'Test3',
       tagline: 'โซลูชั่นครบวงจรสำหรับองค์กร',
-      logo: logo3,     // ← โลโก้ที่ 3 (เปลี่ยนเป็น logo3 เมื่อมีไฟล์)
-      // price: 'ติดต่อเรา',
-      // period: '',
+      logo: logo1,
+      price: 'ติดต่อเรา',
+      period: '',
       features: [
-        // 'ทุกอย่างใน Pro',
-        // 'พื้นที่จัดเก็บไม่จำกัด',
-        // 'เซิร์ฟเวอร์ส่วนตัว',
-        // 'ระบบ Single Sign-On',
-        // 'ทีมสนับสนุนเฉพาะ',
-        // 'SLA การันตี 99.99%'
+        'ทุกอย่างใน Pro',
+        'พื้นที่จัดเก็บไม่จำกัด',
+        'เซิร์ฟเวอร์ส่วนตัว',
+        'ระบบ Single Sign-On',
+        'ทีมสนับสนุนเฉพาะ',
+        'SLA การันตี 99.99%'
       ],
-      cta: 'รายละเอียด',
+      cta: 'ติดต่อฝ่ายขาย',
       popular: false
     }
   ];
@@ -60,13 +63,16 @@ function Products() {
     <section id="products" className="products">
       <div className="container">
         <div className="section-header">
-          <h2 className="section-title">Product Distributor</h2>
+          <h2 className="section-title">เลือกแพ็กเกจที่เหมาะกับคุณ</h2>
+          <p className="section-subtitle">
+            ยืดหยุ่น คุ้มค่า พร้อมรองรับการเติบโต
+          </p>
         </div>
 
         <div className="products-grid">
-          {products.map((product, index) => (
+          {products.map((product) => (
             <div 
-              key={index} 
+              key={product.id} 
               className={`product-card ${product.popular ? 'popular' : ''}`}
             >
               {product.popular && (
@@ -91,9 +97,16 @@ function Products() {
                   </li>
                 ))}
               </ul>
-              <button className={`btn ${product.popular ? 'btn-primary' : 'btn-secondary'}`}>
-                {product.cta}
-              </button>
+              
+              {/* ปุ่มรายละเอียด → ไปหน้าใหม่ */}
+              <div className="product-actions">
+                <Link to={`/product/${product.id}`} className="btn btn-primary">
+                  ดูรายละเอียด
+                </Link>
+                <button className={`btn ${product.popular ? 'btn-secondary' : 'btn-text'}`}>
+                  {product.cta}
+                </button>
+              </div>
             </div>
           ))}
         </div>
