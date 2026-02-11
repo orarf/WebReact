@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -33,10 +33,23 @@ function AdminDashboard() {
     availability: 'มีสินค้า',
   });
   const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null); // ← เพิ่ม state สำหรับ preview
+  const fileInputRef = useRef(null); // ← useRef สำหรับ input file
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // ตรวจสอบสิทธิ์ Admin
+  // สร้าง preview URL เมื่อเลือกไฟล์ใหม่
+  useEffect(() => {
+    if (imageFile) {
+      const previewUrl = URL.createObjectURL(imageFile);
+      setImagePreview(previewUrl);
+      
+      // Cleanup เมื่อ component unmount หรือเลือกไฟล์ใหม่
+      return () => URL.revokeObjectURL(previewUrl);
+    }
+  }, [imageFile]);
+
+  // ข้อมูลแพ็กเกจ
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/login');
@@ -48,7 +61,6 @@ function AdminDashboard() {
     }
   }, [user, isAdmin, authLoading, navigate]);
 
-  // โหลดสินค้า
   useEffect(() => {
     if (user && isAdmin) {
       loadProducts();
@@ -68,7 +80,6 @@ function AdminDashboard() {
     }
   }
 
-  // เปิด Modal สร้างใหม่
   function handleAddNew() {
     setEditingProduct(null);
     setFormData({
@@ -82,11 +93,11 @@ function AdminDashboard() {
       availability: 'มีสินค้า',
     });
     setImageFile(null);
+    setImagePreview(null);
     setFormError('');
     setShowModal(true);
   }
 
-  // เปิด Modal แก้ไข
   function handleEdit(product) {
     setEditingProduct(product);
     setFormData({
@@ -95,16 +106,16 @@ function AdminDashboard() {
       name: product.name,
       category: product.category,
       image: product.image,
-      short_spec: product.short_spec,
+      short_spec: product.short_spec || '',
       price: product.price,
       availability: product.availability,
     });
     setImageFile(null);
+    setImagePreview(product.image); // แสดงรูปเดิม
     setFormError('');
     setShowModal(true);
   }
 
-  // บันทึกสินค้า
   async function handleSave(e) {
     e.preventDefault();
     setFormError('');
@@ -115,8 +126,18 @@ function AdminDashboard() {
 
       // อัพโหลดรูปใหม่ถ้ามี
       if (imageFile) {
+        console.log('Uploading image:', imageFile.name);
         const fileName = `${Date.now()}_${imageFile.name}`;
-        imageUrl = await uploadImage(imageFile, fileName);
+        
+        try {
+          imageUrl = await uploadImage(imageFile, fileName);
+          console.log('Image uploaded successfully:', imageUrl);
+        } catch (uploadErr) {
+          console.error('Upload error:', uploadErr);
+          setFormError('อัพโหลดรูปภาพไม่สำเร็จ: ' + uploadErr.message);
+          setSaving(false);
+          return;
+        }
       }
 
       const productData = {
@@ -124,12 +145,23 @@ function AdminDashboard() {
         image: imageUrl,
       };
 
+      console.log('=== DEBUG: Saving product ===');
+      console.log('Editing product ID:', editingProduct?.id);
+      console.log('Product data to save:', productData);
+      console.log('Price value:', productData.price);
+
       if (editingProduct) {
-        await updateProduct(editingProduct.id, productData);
+        console.log('Calling updateProduct...');
+        const result = await updateProduct(editingProduct.id, productData);
+        console.log('Update result:', result);
       } else {
-        await createProduct(productData);
+        console.log('Calling createProduct...');
+        const result = await createProduct(productData);
+        console.log('Create result:', result);
       }
 
+      // Reset form และ close modal
+      resetForm();
       setShowModal(false);
       loadProducts();
     } catch (err) {
@@ -140,7 +172,38 @@ function AdminDashboard() {
     }
   }
 
-  // ลบสินค้า
+  function resetForm() {
+    setFormData({
+      package_id: 'test1',
+      model: '',
+      name: '',
+      category: '',
+      image: '',
+      short_spec: '',
+      price: '',
+      availability: 'มีสินค้า',
+    });
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''; // ← Reset input file
+    }
+  }
+
+  function handleCancel() {
+    resetForm();
+    setShowModal(false);
+  }
+
+  function handleClearImage() {
+    setImageFile(null);
+    setImagePreview(editingProduct?.image || null);
+    setFormData({...formData, image: editingProduct?.image || ''});
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }
+
   async function handleDelete(productId) {
     if (!confirm('คุณแน่ใจหรือไม่ที่จะลบสินค้านี้?')) return;
 
@@ -153,7 +216,6 @@ function AdminDashboard() {
     }
   }
 
-  // กรองสินค้า
   const filteredProducts = products.filter(product => {
     const matchSearch = 
       product.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -165,7 +227,6 @@ function AdminDashboard() {
     return matchSearch && matchPackage;
   });
 
-  // สถิติ
   const stats = {
     total: products.length,
     test1: products.filter(p => p.package_id === 'test1').length,
@@ -323,25 +384,31 @@ function AdminDashboard() {
 
       {/* Modal */}
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="modal-overlay" onClick={handleCancel}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{editingProduct ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}</h2>
             
             {formError && <div className="form-error">{formError}</div>}
             
             <form onSubmit={handleSave}>
+              {/* Debug: แสดงค่า formData */}
+              <div style={{fontSize: '12px', color: '#999', marginBottom: '10px'}}>
+                Debug: model={formData.model}, name={formData.name}, price={formData.price}
+              </div>
+              
               <div className="form-row">
                 <div className="form-group">
-                  <label>แพ็กเกจ</label>
-                  <select
+                  <label>แบรนด์ / Package</label>
+                  <input
+                    type="text"
                     value={formData.package_id}
-                    onChange={(e) => setFormData({...formData, package_id: e.target.value})}
+                    onChange={(e) => {
+                      console.log('Package changed:', e.target.value);
+                      setFormData({...formData, package_id: e.target.value});
+                    }}
+                    placeholder="viavi"
                     required
-                  >
-                    <option value="test1">Basic (Test1)</option>
-                    <option value="test2">Pro (Test2)</option>
-                    <option value="test3">Enterprise (Test3)</option>
-                  </select>
+                  />
                 </div>
                 
                 <div className="form-group">
@@ -349,7 +416,10 @@ function AdminDashboard() {
                   <input
                     type="text"
                     value={formData.model}
-                    onChange={(e) => setFormData({...formData, model: e.target.value})}
+                    onChange={(e) => {
+                      console.log('Model changed:', e.target.value);
+                      setFormData({...formData, model: e.target.value});
+                    }}
                     placeholder="FI-100"
                     required
                   />
@@ -361,7 +431,10 @@ function AdminDashboard() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => {
+                    console.log('Name changed:', e.target.value);
+                    setFormData({...formData, name: e.target.value});
+                  }}
                   placeholder="Fiber Identifier"
                   required
                 />
@@ -384,7 +457,10 @@ function AdminDashboard() {
                   <input
                     type="text"
                     value={formData.price}
-                    onChange={(e) => setFormData({...formData, price: e.target.value})}
+                    onChange={(e) => {
+                      console.log('Price changed:', e.target.value);
+                      setFormData({...formData, price: e.target.value});
+                    }}
                     placeholder="฿12,500"
                     required
                   />
@@ -401,38 +477,89 @@ function AdminDashboard() {
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>สถานะ</label>
-                  <select
-                    value={formData.availability}
-                    onChange={(e) => setFormData({...formData, availability: e.target.value})}
-                  >
-                    <option value="มีสินค้า">มีสินค้า</option>
-                    <option value="สั่งจอง">สั่งจอง</option>
-                    <option value="สั่งผลิต">สั่งผลิต</option>
-                    <option value="หมดสต็อก">หมดสต็อก</option>
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label>รูปภาพ</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files[0])}
-                  />
-                </div>
+              <div className="form-group">
+                <label>สถานะ</label>
+                <select
+                  value={formData.availability}
+                  onChange={(e) => setFormData({...formData, availability: e.target.value})}
+                  style={{ width: '100%' }}
+                >
+                  <option value="มีสินค้า">มีสินค้า</option>
+                  <option value="สั่งจอง">สั่งจอง</option>
+                  <option value="สั่งผลิต">สั่งผลิต</option>
+                  <option value="หมดสต็อก">หมดสต็อก</option>
+                </select>
               </div>
 
-              {formData.image && !imageFile && (
-                <div className="current-image">
-                  <img src={formData.image} alt="Current" />
+              {/* เลือกระหว่างอัพโหลดไฟล์ หรือใส่ URL */}
+              <div className="form-group">
+                <label>รูปภาพสินค้า</label>
+                <div className="image-input-tabs">
+                  <button 
+                    type="button" 
+                    className={`tab-btn ${!formData.image?.startsWith('http') ? 'active' : ''}`}
+                    onClick={() => setFormData({...formData, image: ''})}
+                  >
+                    อัพโหลดไฟล์
+                  </button>
+                  <button 
+                    type="button"
+                    className={`tab-btn ${formData.image?.startsWith('http') ? 'active' : ''}`}
+                    onClick={() => setFormData({...formData, image: 'https://'})}
+                  >
+                    ใส่ URL
+                  </button>
+                </div>
+
+                {/* อัพโหลดไฟล์ */}
+                {!formData.image?.startsWith('http') && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setImageFile(e.target.files[0])}
+                      style={{ marginTop: '12px' }}
+                    />
+                    {imageFile && <span style={{fontSize: '13px', color: '#6e6e73'}}>เลือก: {imageFile.name}</span>}
+                  </>
+                )}
+
+                {/* ใส่ URL */}
+                {formData.image?.startsWith('http') && (
+                  <input
+                    type="url"
+                    placeholder="https://example.com/image.jpg"
+                    value={formData.image}
+                    onChange={(e) => setFormData({...formData, image: e.target.value})}
+                    style={{ marginTop: '12px' }}
+                  />
+                )}
+              </div>
+
+              {/* Preview รูป */}
+              {imagePreview && (
+                <div className="image-preview-section">
+                  <label>ตัวอย่างรูปภาพ</label>
+                  <div className="preview-container">
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview" 
+                      className="image-preview"
+                    />
+                    <button 
+                      type="button" 
+                      className="btn-clear-image"
+                      onClick={handleClearImage}
+                    >
+                      ✕ ล้างรูป
+                    </button>
+                  </div>
                 </div>
               )}
 
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                <button type="button" className="btn btn-secondary" onClick={handleCancel}>
                   ยกเลิก
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>

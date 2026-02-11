@@ -66,6 +66,11 @@ function ProductDetail() {
 
   const currentPackage = packagesData[productId?.toLowerCase()];
 
+  // Scroll ไปด้านบนสุดเมื่อเปิดหน้าใหม่
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [productId]);
+
   // ดึงข้อมูลจาก Supabase
   useEffect(() => {
     async function fetchData() {

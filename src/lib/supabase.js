@@ -122,13 +122,40 @@ export async function createProduct(productData) {
  * อัพเดทสินค้า (Admin only)
  */
 export async function updateProduct(productId, updates) {
+  console.log('=== Supabase: updateProduct ===');
+  console.log('Product ID:', productId);
+  console.log('Product ID type:', typeof productId);
+  console.log('Updates:', updates);
+
+  // ตรวจสอบก่อนว่ามี product นี้อยู่ไหม
+  const { data: existing, error: checkError } = await supabase
+    .from('products')
+    .select('id, model, name')
+    .eq('id', productId);
+  
+  console.log('Check existing product:', { existing, checkError });
+
+  // ทำการ update
   const { data, error } = await supabase
     .from('products')
     .update(updates)
     .eq('id', productId)
     .select();
 
-  if (error) throw error;
+  console.log('Supabase update response:', { data, error });
+
+  if (error) {
+    console.error('Supabase update error:', error);
+    throw error;
+  }
+  
+  if (!data || data.length === 0) {
+    console.warn('Update returned no data. This might mean:');
+    console.warn('1. No row matches this ID');
+    console.warn('2. RLS is blocking the update');
+    console.warn('3. The ID format is incorrect');
+  }
+  
   // data เป็น array ให้ return ตัวแรก หรือ return null ถ้าไม่มีข้อมูล
   return data && data.length > 0 ? data[0] : null;
 }
@@ -177,19 +204,28 @@ export async function searchProducts(query) {
  * อัพโหลดรูปภาพ (ใช้ Supabase Storage)
  */
 export async function uploadImage(file, fileName) {
+  console.log('Starting upload to Supabase Storage...', fileName);
+  
   const { data, error } = await supabase.storage
     .from('product-images')
     .upload(`products/${fileName}`, file, {
       cacheControl: '3600',
       upsert: false,
+      contentType: file.type,
     });
 
-  if (error) throw error;
+  if (error) {
+    console.error('Supabase storage upload error:', error);
+    throw new Error(`Upload failed: ${error.message}`);
+  }
+  
+  console.log('Upload successful:', data);
   
   // ได้ URL ของรูป
   const { data: { publicUrl } } = supabase.storage
     .from('product-images')
     .getPublicUrl(`products/${fileName}`);
   
+  console.log('Public URL:', publicUrl);
   return publicUrl;
 }
