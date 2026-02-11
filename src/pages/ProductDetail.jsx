@@ -156,7 +156,7 @@ function ProductDetail() {
       </section>
 
       {/* Specs */}
-      <section className="product-detail-specs">
+      {/* <section className="product-detail-specs">
         <div className="container">
           <h2 className="section-title">สเปคแพ็กเกจ</h2>
           <div className="specs-grid">
@@ -168,7 +168,7 @@ function ProductDetail() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Product Catalog */}
       <section className="product-catalog">
@@ -236,6 +236,12 @@ function ProductDetail() {
                     <p className="catalog-spec">{item.short_spec || item.shortSpec}</p>
                     <div className="catalog-footer">
                       <span className="catalog-price">{item.price}</span>
+                      <button className="catalog-btn">
+                        ใส่ตะกร้า
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 5v14M5 12l7 7 7-7" />
+                        </svg>
+                      </button>
                       <button className="catalog-btn">
                         ดูรายละเอียด
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
