@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import logo1 from '../assets/Tricomm-logo.png';
-import { getProductsByPackage, getCategories } from '../lib/supabase';
+import { getProductsByPackage, getCategories, searchProducts } from '../lib/supabase';
 
 function ProductDetail() {
   const { productId } = useParams();
@@ -11,6 +11,7 @@ function ProductDetail() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState(['ทั้งหมด']);
   const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -91,10 +92,32 @@ function ProductDetail() {
     fetchData();
   }, [productId]);
 
-  // กรองสินค้าตามหมวดหมู่
-  const filteredProducts = selectedCategory === 'ทั้งหมด' 
-    ? products 
-    : products.filter(p => p.category === selectedCategory);
+  // ค้นหาแบบ real-time (client-side)
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  // กรองสินค้าตามหมวดหมู่ + คำค้นหา
+  const filteredProducts = products.filter(product => {
+    // กรองตามหมวดหมู่
+    const matchCategory = selectedCategory === 'ทั้งหมด' || product.category === selectedCategory;
+    
+    // กรองตามคำค้นหา
+    const query = searchQuery.toLowerCase();
+    const matchSearch = 
+      !searchQuery || 
+      product.model?.toLowerCase().includes(query) ||
+      product.name?.toLowerCase().includes(query) ||
+      product.category?.toLowerCase().includes(query) ||
+      product.short_spec?.toLowerCase().includes(query);
+    
+    return matchCategory && matchSearch;
+  });
+
+  // ล้างการค้นหา
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
 
   if (!currentPackage) {
     return (
@@ -156,7 +179,7 @@ function ProductDetail() {
       </section>
 
       {/* Specs */}
-      {/* <section className="product-detail-specs">
+      <section className="product-detail-specs">
         <div className="container">
           <h2 className="section-title">สเปคแพ็กเกจ</h2>
           <div className="specs-grid">
@@ -168,7 +191,7 @@ function ProductDetail() {
             ))}
           </div>
         </div>
-      </section> */}
+      </section>
 
       {/* Product Catalog */}
       <section className="product-catalog">
@@ -188,18 +211,44 @@ function ProductDetail() {
             </div>
           )}
 
-          {/* Category Filter */}
+          {/* Search & Filter Section */}
           {!loading && !error && products.length > 0 && (
-            <div className="category-filter">
-              {categories.map((cat, idx) => (
-                <button 
-                  key={idx} 
-                  className={`filter-btn ${selectedCategory === cat ? 'active' : ''}`}
-                  onClick={() => setSelectedCategory(cat)}
-                >
-                  {cat}
-                </button>
-              ))}
+            <div className="search-filter-section">
+              {/* Search Box */}
+              <div className="search-box">
+                <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="ค้นหาสินค้า, รุ่น, หมวดหมู่..."
+                  value={searchQuery}
+                  onChange={handleSearch}
+                  className="search-input"
+                />
+                {searchQuery && (
+                  <button className="clear-search" onClick={clearSearch}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Category Filter */}
+              <div className="category-filter">
+                {categories.map((cat, idx) => (
+                  <button 
+                    key={idx} 
+                    className={`filter-btn ${selectedCategory === cat ? 'active' : ''}`}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -237,12 +286,6 @@ function ProductDetail() {
                     <div className="catalog-footer">
                       <span className="catalog-price">{item.price}</span>
                       <button className="catalog-btn">
-                        ใส่ตะกร้า
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 5v14M5 12l7 7 7-7" />
-                        </svg>
-                      </button>
-                      <button className="catalog-btn">
                         ดูรายละเอียด
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M5 12h14M12 5l7 7-7 7" />
@@ -258,10 +301,21 @@ function ProductDetail() {
           {/* Empty State */}
           {!loading && !error && filteredProducts.length === 0 && (
             <div className="empty-state">
-              <p>ไม่พบสินค้าในหมวดหมู่นี้</p>
-              <p style={{fontSize: '14px', color: '#86868b'}}>
-                กรุณาตรวจสอบว่าได้สร้าง table "products" และใส่ข้อมูลใน Supabase แล้ว
-              </p>
+              {searchQuery ? (
+                <>
+                  <p>ไม่พบสินค้าที่ตรงกับ "{searchQuery}"</p>
+                  <button className="btn btn-secondary" onClick={clearSearch}>
+                    ล้างการค้นหา
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p>ไม่พบสินค้าในหมวดหมู่นี้</p>
+                  <p style={{fontSize: '14px', color: '#86868b'}}>
+                    กรุณาตรวจสอบว่าได้สร้าง table "products" และใส่ข้อมูลใน Supabase แล้ว
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>
